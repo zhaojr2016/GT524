@@ -1,0 +1,69 @@
+#! /bin/sh
+
+ifdown -a
+ifup -a
+
+sed -i '/^ulimit/'d /etc/profile
+sed -i '$a ulimit -c unlimited > /dev/null 2>&1' /etc/profile
+source /etc/profile
+
+
+export GWD_PATH=/opt 
+export app=$GWD_PATH/gwdapp.tar.gz
+export appu=$GWD_PATH/gwdappu.tar.gz
+
+if [ -e /gwdapp.tar.gz ]; then
+	cp /gwdapp.tar.gz $app
+fi
+
+if [ -e /gwdappu.tar.gz ]; then
+	cp /gwdappu.tar.gz $appu
+fi
+
+if [ -e $appu ]; then		#appu exist, processing upgrade
+    if [ -e /up_fail ]; then	#up_fail flags exist, the previos upgrading was fail, version resverting
+      echo "tar -xf $app"
+	tar -xf $app -C $GWD_PATH
+      echo "rm up_fail"
+	rm /up_fail
+      echo "rm $appu"
+	rm $appu
+    else 				#dec appu for updating files
+	echo "tar -xf $appu"
+	tar -xf $appu -C $GWD_PATH
+	echo "touch up_fail"	#touch up_fail flag to indicate default result is fail, it will be removed when upgrade was completed in the app
+	touch /up_fail
+    fi
+else
+
+	if [ ! -e $GWD_PATH/mxuapp.lzma ]; then
+		tar -xf $app -C $GWD_PATH
+ 	fi
+fi
+cp /opt/S80smartboot /etc/init.d/
+
+if [ -e $GWD_PATH/gwdapp.tar.gz ]; then
+	rm $GWD_PATH/gwdapp.tar.gz
+fi
+
+if [ -e $GWD_PATH/gwdappu.tar.gz ]; then
+	rm $GWD_PATH/gwdappu.tar.gz
+fi
+
+echo "start mxuapp ..."
+cd /opt/
+echo "dec mxuapp.lzma ..."
+lzma -d mxuapp.lzma
+echo "done"
+chmod +x mxuapp
+chmod +x mxudaemon
+if [ ! -e /mxudaemon_debug ];then
+	cp /opt/mxudaemon_debug /
+fi
+test -e ./voyager.conf && . $GWD_PATH/voyager.conf
+./mxudaemon
+./mxuapp
+
+
+
+
